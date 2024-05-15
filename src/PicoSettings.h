@@ -3,7 +3,10 @@
 #include <set>
 #include <PicoMQTT.h>
 #include <Preferences.h>
-#include <nvs.h>
+#include "nvs.h"
+
+#define FLOAT_DIGITS 7
+#define DOUBLE_DIGITS 12
 
 // These methods convert a MQTT message payload string to different types.  The 2nd param must be a non-const reference.
 // TODO: Find a way to return the parsed value
@@ -28,7 +31,6 @@ static inline void load_from_string(const String & payload, bool & value) {
     value = payload.toInt();
 }
 
-
 // These methods convert different types to a MQTT payload
 static inline String store_to_string(const String & value) {
     return value;
@@ -39,11 +41,11 @@ static inline String store_to_string(const int & value) {
 }
 
 static inline String store_to_string(const double & value) {
-    return String(value);
+    return String(value, DOUBLE_DIGITS);
 }
 
 static inline String store_to_string(const float & value) {
-    return String(value);
+    return String(value, FLOAT_DIGITS);
 }
 
 static inline String store_to_string(const bool & value) {
