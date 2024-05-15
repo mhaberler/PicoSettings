@@ -3,6 +3,7 @@
 #include <set>
 #include <PicoMQTT.h>
 #include <Preferences.h>
+#include <nvs.h>
 
 // These methods convert a MQTT message payload string to different types.  The 2nd param must be a non-const reference.
 // TODO: Find a way to return the parsed value
@@ -111,6 +112,7 @@ class PicoSettings {
         Setting(PicoSettings & ns, const String & name, const T & default_value, std::function<void()> change_callback = nullptr):
             name(name), ns(ns), default_value(default_value), change_callback(change_callback) {
             value = default_value;
+            // assert(name.len() < NVS_KEY_NAME_MAX_SIZE);
             ns.settings.insert(this);
         }
 
