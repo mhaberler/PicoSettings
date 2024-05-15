@@ -8,6 +8,10 @@ void on_fparam_change(void);
 PicoMQTT::Server mqtt;
 PicoSettings settings(mqtt, "testns");
 
+PicoSettings::Setting<String> ssid(settings, "ssid", "some-SSID");
+PicoSettings::Setting<String> password(settings, "pass", "secret");
+
+
 PicoSettings::Setting<int> bar(settings, "bar", 42);
 PicoSettings::Setting<String> baz(settings, "baz", "The Answer.");
 PicoSettings::Setting<double> dzero(settings, "dzero", 0.0);
@@ -25,10 +29,14 @@ void on_fparam_change(void) {
 
 void setup() {
 
-    delay(3000);
-    M5.begin();
 
+    M5.begin();
+    delay(3000);
     Serial.begin(115200);
+
+    // make persisted values available
+    settings.begin();
+    Serial.printf("stored credentials: %s %s\n", ssid.get().c_str(), password.get().c_str());
 
     // Connect to WiFi
     Serial.printf("Connecting to WiFi %s\n", WIFI_SSID);
@@ -41,7 +49,8 @@ void setup() {
     Serial.printf("WiFi connected, IP: %s\n", WiFi.localIP().toString().c_str());
 
     mqtt.begin();
-    settings.begin();
+
+    settings.live();
     settings.publish();
     bar.change_callback = [] {
         log_i("bar changed to %d", bar.get());

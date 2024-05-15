@@ -75,4 +75,30 @@ void on_fparam_change(void) {
 PicoSettings::Setting<float> fparam(settings, "fparam", 2.718, on_fparam_change);
 ````
 
+## Initialisation
+
+To make the persisted values of PicoSettings available, call the `begin()` method:
+
+````c++
+PicoSettings settings(mqtt, "testns");
+PicoSettings::Setting<int> bar(settings, "bar", 42);
+
+void setup() {
+    settings.begin();
+    // print the persisted value of bar
+    Serial.printf("bar = %d\n", bar);
+}
+````
+Note that no network connectivity or live broker is needed at this point. At this stage all PicoSettings values can be read and updated, and updates will be reflected in persistent storage.
+
+## Preparing for MQTT updates 
+
+To associate PicoSettings with MQTT topics call the `live()` method. This will subscribe settings for updates via the `preferences/<namespace>/<name>` topic, and also register a `preferences/<namespace>/reset` topic.
+
+Writing any value to this `reset` topic will wipe that namespace, and revert all values to compile-time defaults.
+
+## Publishing PicoSettings
+
+To publish all variables in a namespace with their current values, call the `publish()` method.
+
 
