@@ -130,13 +130,12 @@ class PicoSettings {
             } else {
                 _value = nvGet(_ns._prefs, _name, _value);
             }
-            if (change_callback) {
-                change_callback();
-            }
-
         }
 
         virtual void live() override {
+            if (change_callback) {
+                change_callback();
+            }
             _ns._mqtt.subscribe(String("preferences/") + _ns._name + "/" + _name, [this](const String & payload) {
                 load_from_string(payload, _value);
                 if (change_callback) {
@@ -230,7 +229,7 @@ class PicoSettings {
             defaults();
         });
     }
-    
+
     // publish everything within this namespace
     void publish() {
         for (auto & setting: _settings)
