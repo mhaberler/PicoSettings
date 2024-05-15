@@ -103,58 +103,58 @@ class PicoSettings {
 
         virtual void begin() = 0;
         virtual void publish() = 0;
-        virtual const String &var_name() = 0;
+        virtual const String &name() = 0;
     };
 
     template <typename T>
     class Setting: public SettingBase {
       public:
-        Setting(PicoSettings & ns, const String & name, const T & default_value, std::function<void()> change_callback = nullptr):
-            name(name), ns(ns), default_value(default_value), change_callback(change_callback) {
-            value = default_value;
+        Setting(PicoSettings & ns, const String & name, const T & default_value, std::function<void()> callback = nullptr):
+            _name(name), _ns(ns), _default_value(default_value), change_callback(callback) {
+            _value = _default_value;
             // assert(name.len() < NVS_KEY_NAME_MAX_SIZE);
-            ns.settings.insert(this);
+            _ns._settings.insert(this);
         }
 
         ~Setting() {
-            ns.settings.erase(this);
+            _ns._settings.erase(this);
         }
 
         virtual void begin() override {
-            if (!ns.prefs.isKey(name.c_str())) {
-                nvSet(ns.prefs, name, default_value);
-                value = default_value;
+            if (!_ns._prefs.isKey(_name.c_str())) {
+                nvSet(_ns._prefs, _name, _default_value);
+                _value = _default_value;
             } else {
-                value = nvGet(ns.prefs, name, value);
+                _value = nvGet(_ns._prefs, _name, _value);
             }
             if (change_callback) {
                 change_callback();
             }
-            ns.mqtt.subscribe(String("preferences/") + ns.name + "/" + name, [this](const String & payload) {
-                load_from_string(payload, value);
+            _ns._mqtt.subscribe(String("preferences/") + _ns._name + "/" + _name, [this](const String & payload) {
+                load_from_string(payload, _value);
                 if (change_callback) {
                     change_callback();
                 }
-                nvSet(ns.prefs, name, value);
+                nvSet(_ns._prefs, _name, _value);
             });
         }
 
         virtual void publish() override {
-            ns.mqtt.publish(String("preferences/") + ns.name + "/" + name, store_to_string(value));
+            _ns._mqtt.publish(String("preferences/") + _ns._name + "/" + _name, store_to_string(_value));
         }
 
         const T & get() const {
-            return value;
+            return _value;
         }
 
         const T & get_default() const {
-            return default_value;
+            return _default_value;
         }
 
         void set(const T & new_value) {
-            if (value != new_value) {
-                value = new_value;
-                nvSet(ns.prefs, name, value);
+            if (_value != new_value) {
+                _value = new_value;
+                nvSet(_ns._prefs, _name, _value);
                 publish();
                 if (change_callback) {
                     change_callback();
@@ -176,66 +176,73 @@ class PicoSettings {
             return other;
         }
 
-        const String &var_name() {
-            return name;
+        const String &name() {
+            return _name;
         }
 
         std::function<void()> change_callback;
 
-        const String name;
-
       protected:
-        PicoSettings & ns;
-        T value;
-        const T default_value;
+        const String _name;
+        PicoSettings & _ns;
+        T _value;
+        const T _default_value;
     };
 
 
     // PicoMQTT::Server  could be replaced by PicoMQTT::Client like so:
     // PicoSettings(PicoMQTT::Client & mqtt, const String name): mqtt(mqtt), name(name) {}
-    PicoSettings(PicoMQTT::Server & mqtt, const String name = "default"): mqtt(mqtt), name(name) {}
+    PicoSettings(PicoMQTT::Server & mqtt, const String name = "default", const String prefix = "preferences/"): _mqtt(mqtt), _name(name), _prefix(prefix) {}
 
     ~PicoSettings() {
-        prefs.end();
+        _prefs.end();
     }
 
     void defaults() {
-        log_i("defaults: %s", name.c_str());
-        prefs.clear();
-        prefs.end();
+        log_i("defaults: %s", _name.c_str());
+        _prefs.clear();
+        _prefs.end();
         begin();
     }
 
     // init all settings within this namespace
     void begin() {
-        if (!prefs.begin(name.c_str(), false)) {
-            log_e("opening namespace '%s' failed", name.c_str());
+        if (!_prefs.begin(_name.c_str(), false)) {
+            log_e("opening namespace '%s' failed", _name.c_str());
         };
-        for (auto & setting: settings)
+        for (auto & setting: _settings)
             setting->begin();
 
         // writing any value to preferences/<namespace>/reset will wipe the namespace
         // and set all of its settings to declaration-time defaults
-        mqtt.subscribe(String("preferences/") + name + "/reset", [this](const String & payload) {
+        _mqtt.subscribe(_prefix + _name + "/reset", [this](const String & payload) {
             defaults();
         });
     }
 
     // publish everything within this namespace
     void publish() {
-        for (auto & setting: settings)
+        for (auto & setting: _settings)
             setting->publish();
 
-        mqtt.publish(String("preferences/") + name + "/reset", "0");
+        _mqtt.publish(_prefix + _name + "/reset", "0");
     }
 
-    const String name;
+    const String &name() {
+        return _name;
+    }
+
+    const String &prefix() {
+        return _prefix;
+    }
 
   protected:
-    PicoMQTT::Server & mqtt;
-    Preferences prefs;
+    PicoMQTT::Server & _mqtt;
+    Preferences _prefs;
+    const String _name;
+    const String _prefix;
 
     // TODO: Perhaps a different container would work better?...
-    std::set<SettingBase *> settings;
+    std::set<SettingBase *> _settings;
 };
 
