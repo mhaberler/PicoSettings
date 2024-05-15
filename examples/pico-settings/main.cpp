@@ -10,8 +10,9 @@ PicoSettings settings(mqtt, "testns");
 
 PicoSettings::Setting<int> bar(settings, "bar", 42);
 PicoSettings::Setting<String> baz(settings, "baz", "The Answer.");
-PicoSettings::Setting<double> dparam(settings, "dparam", 3.14);
-PicoSettings::Setting<float> fparam(settings, "fparam", 2.718, on_fparam_change);
+PicoSettings::Setting<double> dzero(settings, "dzero", 0.0);
+PicoSettings::Setting<double> dparam(settings, "dparam", PI);
+PicoSettings::Setting<float> fparam(settings, "fparam", 2.71828182845904523536, on_fparam_change);
 PicoSettings::Setting<bool> flag(settings, "flag", true, [] {
     log_i("flag=%d", flag.get());
 });
