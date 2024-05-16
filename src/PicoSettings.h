@@ -107,6 +107,9 @@ class PicoSettings {
         virtual void live() = 0;
         virtual void publish() = 0;
         virtual const String &name() = 0;
+      private:
+        // SettingBase(const SettingBase &, const String &, const T &, std::function<void()) = delete;  // broken
+        SettingBase &operator=(const SettingBase &) = delete;
     };
 
     template <typename T>
