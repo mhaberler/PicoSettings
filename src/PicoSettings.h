@@ -202,6 +202,7 @@ class PicoSettings {
     PicoSettings(PicoMQTT::Server & mqtt, const String name = "default", const String prefix = "preferences/"): _mqtt(mqtt), _name(name), _prefix(prefix) {}
 
     ~PicoSettings() {
+        _mqtt.unsubscribe(_prefix + _name + "/reset");
         _prefs.end();
     }
 
