@@ -120,6 +120,7 @@ class PicoSettings {
         }
 
         ~Setting() {
+            _ns._mqtt.unsubscribe(_ns.prefix() + _ns._name + "/" + _name);
             _ns._settings.erase(this);
         }
 
@@ -136,7 +137,7 @@ class PicoSettings {
             if (change_callback) {
                 change_callback();
             }
-            _ns._mqtt.subscribe(String("preferences/") + _ns._name + "/" + _name, [this](const String & payload) {
+            _ns._mqtt.subscribe(_ns.prefix() + _ns._name + "/" + _name, [this](const String & payload) {
                 load_from_string(payload, _value);
                 if (change_callback) {
                     change_callback();
@@ -146,7 +147,7 @@ class PicoSettings {
         }
 
         virtual void publish() override {
-            _ns._mqtt.publish(String("preferences/") + _ns._name + "/" + _name, store_to_string(_value));
+            _ns._mqtt.publish(_ns.prefix() + _ns._name + "/" + _name, store_to_string(_value));
         }
 
         const T & get() const {
