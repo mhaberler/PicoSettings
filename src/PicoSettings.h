@@ -104,7 +104,6 @@ class PicoSettings {
         virtual ~SettingBase() {}
 
         virtual void begin() = 0;
-        virtual void live() = 0;
         virtual void publish() = 0;
         virtual const String &name() = 0;
     };
@@ -131,9 +130,6 @@ class PicoSettings {
             } else {
                 _value = nvGet(_ns._prefs, _name, _value);
             }
-        }
-
-        virtual void live() override {
             if (change_callback) {
                 change_callback();
             }
@@ -221,10 +217,6 @@ class PicoSettings {
         for (auto & setting: _settings)
             setting->begin();
 
-    }
-    void live() {
-        for (auto & setting: _settings)
-            setting->live();
         // writing any value to preferences/<namespace>/reset will wipe the namespace
         // and set all of its settings to declaration-time defaults
         _mqtt.subscribe(_prefix + _name + "/reset", [this](const String & payload) {

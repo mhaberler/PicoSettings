@@ -86,18 +86,11 @@ PicoSettings::Setting<int> bar(settings, "bar", 42);
 void setup() {
     settings.begin();
     // print the persisted value of bar
-    Serial.printf("bar = %d\n", bar);
+    Serial.printf("bar = %d\n", bar.get());
 }
 ````
-Note that no network connectivity or live broker is needed at this point. At this stage all PicoSettings values can be read and updated, and updates will be reflected in persistent storage.
 
-NB value change callbacks are not fired at this stage.
-
-## Preparing for MQTT updates 
-
-To associate PicoSettings with MQTT topics call the `live()` method. 
-
-This fire the value change callbacks, subscribe settings for updates via the `preferences/<namespace>/<name>` topic, and register a `preferences/<namespace>/reset` topic.
+This will fire the initial value change callback, subscribe settings for updates via the `preferences/<namespace>/<name>` topic, and register a `preferences/<namespace>/reset` topic.
 
 Writing any value to this `reset` topic will wipe that namespace, and revert all values to compile-time defaults.
 
