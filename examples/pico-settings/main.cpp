@@ -50,7 +50,6 @@ void setup() {
 
     mqtt.begin();
 
-    settings.live();
     settings.publish();
     bar.change_callback = [] {
         log_i("bar changed to %d", bar.get());
