@@ -8,6 +8,15 @@
 #define FLOAT_DIGITS 7
 #define DOUBLE_DIGITS 12
 
+typedef enum {
+    CB_INITIAL_SETTING,
+    CB_SUBSCRIBE,
+    CB_SET,
+    CB_ASSIGN
+} cb_context;
+
+typedef std::function<bool(const cb_context)> callback_t;
+
 // These methods convert a MQTT message payload string to different types.  The 2nd param must be a non-const reference.
 // TODO: Find a way to return the parsed value
 
@@ -111,7 +120,7 @@ class PicoSettings {
     template <typename T>
     class Setting: public SettingBase {
       public:
-        Setting(PicoSettings & ns, const String & name, const T & default_value, std::function<void()> callback = nullptr):
+        Setting(PicoSettings & ns, const String & name, const T & default_value, callback_t callback = nullptr):
             _name(name), _ns(ns), _default_value(default_value), change_callback(callback) {
             _value = _default_value;
             // assert(name.len() < NVS_KEY_NAME_MAX_SIZE);
@@ -131,14 +140,19 @@ class PicoSettings {
                 _value = nvGet(_ns._prefs, _name, _value);
             }
             if (change_callback) {
-                change_callback();
+                change_callback(CB_INITIAL_SETTING);
             }
             _ns._mqtt.subscribe(_ns.prefix() + _ns._name + "/" + _name, [this](const String & payload) {
-                load_from_string(payload, _value);
+                // if there is a callback set, change the value only if the callback returns true
                 if (change_callback) {
-                    change_callback();
+                    if (change_callback(CB_SUBSCRIBE)) {
+                        load_from_string(payload, _value);
+                        nvSet(_ns._prefs, _name, _value);
+                    }
+                } else {
+                    load_from_string(payload, _value);
+                    nvSet(_ns._prefs, _name, _value);
                 }
-                nvSet(_ns._prefs, _name, _value);
             });
         }
 
@@ -155,13 +169,19 @@ class PicoSettings {
         }
 
         void set(const T & new_value) {
+
+            log_i("set %s", _name.c_str());
             if (_value != new_value) {
                 _value = new_value;
-                nvSet(_ns._prefs, _name, _value);
-                publish();
+
                 if (change_callback) {
-                    change_callback();
+                    if (change_callback(CB_SET)) {
+                        nvSet(_ns._prefs, _name, _value);
+                    }
+                } else {
+                    nvSet(_ns._prefs, _name, _value);
                 }
+                publish();
             }
         }
 
@@ -172,9 +192,12 @@ class PicoSettings {
 
         // This will allow setting from T objects
         const T & operator=(const T & other) {
-            set(other);
             if (change_callback) {
-                change_callback();
+                if (change_callback(CB_ASSIGN)) {
+                    set(other);
+                }
+            } else {
+                set(other);
             }
             return other;
         }
@@ -183,7 +206,7 @@ class PicoSettings {
             return _name;
         }
 
-        std::function<void()> change_callback;
+       callback_t change_callback;
 
       protected:
         const String _name;
