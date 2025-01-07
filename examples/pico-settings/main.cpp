@@ -3,7 +3,7 @@
 #include <PicoWebsocket.h>
 #include "PicoSettings.h"
 
-void on_fparam_change(void);
+bool on_fparam_change(cb_context ctx);
 
 PicoMQTT::Server mqtt;
 PicoSettings settings(mqtt, "testns");
@@ -17,21 +17,23 @@ PicoSettings::Setting<String> baz(settings, "baz", "The Answer.");
 PicoSettings::Setting<double> dzero(settings, "dzero", 0.0);
 PicoSettings::Setting<double> dparam(settings, "dparam", PI);
 PicoSettings::Setting<float> fparam(settings, "fparam", 2.71828182845904523536, on_fparam_change);
-PicoSettings::Setting<bool> flag(settings, "flag", true, [] {
+PicoSettings::Setting<bool> flag(settings, "flag", true, [] (cb_context ctx) {
     log_i("flag=%d", flag.get());
+    return true;
 });
 
 // value change callback
-void on_fparam_change(void) {
+bool on_fparam_change(cb_context ctx) {
     log_i("fparam changed to %f, default value: %f",
           fparam.get(), fparam.get_default());
+    return true;
 }
 
 void setup() {
 
+    delay(3000);
 
     M5.begin();
-    delay(3000);
     Serial.begin(115200);
 
     // make persisted values available
@@ -51,8 +53,9 @@ void setup() {
     mqtt.begin();
 
     settings.publish();
-    bar.change_callback = [] {
+    bar.change_callback = [] (cb_context ctx){
         log_i("bar changed to %d", bar.get());
+        return true;
     };
 }
 
