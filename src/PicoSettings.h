@@ -143,14 +143,13 @@ class PicoSettings {
                 change_callback(CB_INITIAL_SETTING);
             }
             _ns._mqtt.subscribe(_ns.prefix() + _ns._name + "/" + _name, [this](const String & payload) {
-                // if there is a callback set, change the value only if the callback returns true
+                // if there is a callback set, change the value permanently only if the callback returns true
+                load_from_string(payload, _value);
                 if (change_callback) {
                     if (change_callback(CB_SUBSCRIBE)) {
-                        load_from_string(payload, _value);
                         nvSet(_ns._prefs, _name, _value);
                     }
                 } else {
-                    load_from_string(payload, _value);
                     nvSet(_ns._prefs, _name, _value);
                 }
             });
@@ -206,7 +205,7 @@ class PicoSettings {
             return _name;
         }
 
-       callback_t change_callback;
+        callback_t change_callback;
 
       protected:
         const String _name;
