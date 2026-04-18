@@ -26,6 +26,15 @@ PicoSettings::Setting<bool> flag(settings, "flag", true, [] (cb_context ctx) {
     return true;
 });
 
+PicoSettings::Setting<int> reboot(settings, "reboot", 0, [] (cb_context ctx) {
+    log_i("reboot was set: %d flag=%d", ctx, reboot.get());
+    if (ctx == CB_SUBSCRIBE) {
+        ESP.restart();
+    }
+    return false;
+});
+
+
 // value change callback
 bool on_fparam_change(cb_context ctx) {
     log_i("fparam changed to %f, default value: %f",
@@ -78,7 +87,7 @@ void setup() {
     mqtt.begin();
 
     settings.publish();
-    bar.change_callback = [] (cb_context ctx){
+    bar.change_callback = [] (cb_context ctx) {
         log_i("bar changed to %d", bar.get());
         return true;
     };
