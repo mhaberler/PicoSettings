@@ -2,6 +2,10 @@
 #include <PicoMQTT.h>
 #include <PicoWebsocket.h>
 #include "PicoSettings.h"
+#include <ESPmDNS.h>
+
+String macAddress;
+static const char *hostname = HOSTNAME;
 
 bool on_fparam_change(cb_context ctx);
 
@@ -29,6 +33,14 @@ bool on_fparam_change(cb_context ctx) {
     return true;
 }
 
+void getMacAddress(String &macStr) {
+    // Get MAC address
+    uint8_t mac[6];
+    Network.macAddress(mac);
+    macStr = String(mac[0], HEX) + String(mac[1], HEX) + String(mac[2], HEX) + String(mac[3], HEX) + String(mac[4], HEX) + String(mac[5], HEX);
+    macStr.toUpperCase();
+}
+
 void setup() {
 
     delay(3000);
@@ -50,6 +62,19 @@ void setup() {
     delay(1000);
     Serial.printf("WiFi connected, IP: %s\n", WiFi.localIP().toString().c_str());
 
+
+    getMacAddress(macAddress);
+    log_i("MAC address=%s", macAddress.c_str());
+
+    if (MDNS.begin(hostname)) {
+        MDNS.enableWorkstation();
+        MDNS.addService("mqtt", "tcp", MQTT_PORT);
+        MDNS.addService("mqtt-ws", "tcp", MQTTWS_PORT);
+        MDNS.addServiceTxt("mqtt-ws", "tcp", "path", "/mqtt");
+        mdns_service_instance_name_set("_mqtt", "_tcp", ("PicoMQTT-TCP-" + macAddress).c_str());
+        mdns_service_instance_name_set("_mqtt-ws", "_tcp",
+                                       ("PicoMQTT-WS-" + macAddress).c_str());
+    }
     mqtt.begin();
 
     settings.publish();
