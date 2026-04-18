@@ -56,23 +56,42 @@ With this example, the reset topic would be `preferences/testns/reset` .
 
 ## Value change notification
 
-A value change callback may be associate with a setting, to cause some action in user code.
+A value change callback may be associated with a setting, to cause some action in user code.
 
-Example  using a lambda:
+The callback signature is `bool(cb_context)`, where `cb_context` indicates why the callback was invoked:
+
+- `CB_INITIAL_SETTING` — called during `begin()` after loading the value from NVS.
+- `CB_SUBSCRIBE` — called when a new value arrives via MQTT.
+- `CB_SET` — called from the `set()` method.
+- `CB_ASSIGN` — called from `operator=` (before `CB_SET`).
+
+Return `true` to persist the new value to NVS, or `false` to reject it.
+
+Example using a lambda:
 ````c++
-PicoSettings::Setting<bool> flag(settings, "flag", true, [] {
-    log_i("flag=%d", flag.get());
+PicoSettings::Setting<bool> flag(settings, "flag", true, [] (cb_context ctx) {
+    log_i("flag=%d ctx=%d", flag.get(), ctx);
+    return true;
 });
 ````
 Example using a callback function:
 
 ````c++
-void on_fparam_change(void) {
+bool on_fparam_change(cb_context ctx) {
     log_i("fparam changed to %f, default value: %f",
           fparam.get(), fparam.get_default());
+    return true;
 }
 
 PicoSettings::Setting<float> fparam(settings, "fparam", 2.718, on_fparam_change);
+````
+
+A callback can also be assigned or changed at runtime:
+````c++
+bar.change_callback = [] (cb_context ctx) {
+    log_i("bar changed to %d", bar.get());
+    return true;
+};
 ````
 
 ## Initialisation

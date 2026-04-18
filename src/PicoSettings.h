@@ -112,9 +112,10 @@ class PicoSettings {
       public:
         virtual ~SettingBase() {}
 
+        virtual void load() = 0;
         virtual void begin() = 0;
         virtual void publish() = 0;
-        virtual const String &name() = 0;
+        virtual const String &name() const = 0;
     };
 
     template <typename T>
@@ -132,7 +133,7 @@ class PicoSettings {
             _ns._settings.erase(this);
         }
 
-        virtual void begin() override {
+        virtual void load() override {
             if (!_ns._prefs.isKey(_name.c_str())) {
                 nvSet(_ns._prefs, _name, _default_value);
                 _value = _default_value;
@@ -142,6 +143,10 @@ class PicoSettings {
             if (change_callback) {
                 change_callback(CB_INITIAL_SETTING);
             }
+        }
+
+        virtual void begin() override {
+            load();
             _ns._mqtt.subscribe(_ns.prefix() + _ns._name + "/" + _name, [this](const String & payload) {
                 // if there is a callback set, change the value permanently only if the callback returns true
                 load_from_string(payload, _value);
@@ -201,7 +206,7 @@ class PicoSettings {
             return other;
         }
 
-        const String &name() {
+        const String &name() const override {
             return _name;
         }
 
@@ -217,7 +222,7 @@ class PicoSettings {
 
     // PicoMQTT::Server  could be replaced by PicoMQTT::Client like so:
     // PicoSettings(PicoMQTT::Client & mqtt, const String name): mqtt(mqtt), name(name) {}
-    PicoSettings(PicoMQTT::Server & mqtt, const String name = "default", const String prefix = "preferences/"): _mqtt(mqtt), _name(name), _prefix(prefix) {}
+    PicoSettings(PicoMQTT::Server & mqtt, const String &name = "default", const String &prefix = "preferences/"): _mqtt(mqtt), _name(name), _prefix(prefix) {}
 
     ~PicoSettings() {
         _mqtt.unsubscribe(_prefix + _name + "/reset");
@@ -228,14 +233,12 @@ class PicoSettings {
         log_i("defaults: %s", _name.c_str());
         _prefs.clear();
         _prefs.end();
-        begin();
+        reload();
     }
 
     // init all settings within this namespace
     void begin() {
-        if (!_prefs.begin(_name.c_str(), false)) {
-            log_e("opening namespace '%s' failed", _name.c_str());
-        };
+        reload();
         for (auto & setting: _settings)
             setting->begin();
 
@@ -246,6 +249,17 @@ class PicoSettings {
         });
     }
 
+  private:
+    // reopen NVS and reload all settings without re-subscribing
+    void reload() {
+        if (!_prefs.begin(_name.c_str(), false)) {
+            log_e("opening namespace '%s' failed", _name.c_str());
+        }
+        for (auto & setting: _settings)
+            setting->load();
+    }
+
+  public:
     // publish everything within this namespace
     void publish() {
         for (auto & setting: _settings)
