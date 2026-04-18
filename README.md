@@ -117,4 +117,31 @@ Writing any value to this `reset` topic will wipe that namespace, and revert all
 
 To publish all variables in a namespace with their current values, call the `publish()` method.
 
+## Integration Testing
+
+An MQTT-based integration test in `tests/test_settings.py` verifies the full round-trip against a live device running the example firmware.
+
+### Prerequisites
+
+````bash
+uv pip install --python .venv/bin/python paho-mqtt pytest
+````
+
+The device must be flashed and reachable at `picomqtt.local:1883`.
+
+### What the test does
+
+| Phase | Description |
+|-------|-------------|
+| 0 | Reset device to compile-time defaults (clean baseline) |
+| 1 | Collect and record default values from `preferences/testns/#` |
+| 2 | Publish random values for all settings, reboot, verify they persisted |
+| 3 | Trigger reset + reboot, verify compile-time defaults are restored |
+
+### Running
+
+````bash
+.venv/bin/python -m pytest tests/test_settings.py -v -s
+````
+
 
