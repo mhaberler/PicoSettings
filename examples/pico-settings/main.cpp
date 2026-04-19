@@ -5,7 +5,7 @@
 
 String macAddress;
 
-bool on_fparam_change(cb_context ctx);
+bool onFparamChange(cb_context ctx);
 
 PicoMQTT::Server mqtt;
 PicoSettings settings(mqtt, "testns");
@@ -18,7 +18,7 @@ PicoSettings::Setting<int> bar(settings, "bar", 42);
 PicoSettings::Setting<String> baz(settings, "baz", "The Answer.");
 PicoSettings::Setting<double> dzero(settings, "dzero", 0.0);
 PicoSettings::Setting<double> dparam(settings, "dparam", PI);
-PicoSettings::Setting<float> fparam(settings, "fparam", 2.71828182845904523536, on_fparam_change);
+PicoSettings::Setting<float> fparam(settings, "fparam", 2.71828182845904523536, onFparamChange);
 PicoSettings::Setting<bool> flag(settings, "flag", true, [] (cb_context ctx) {
     log_i("flag=%d", flag.get());
     return true;
@@ -34,9 +34,9 @@ PicoSettings::Setting<int> reboot(settings, "reboot", 0, [] (cb_context ctx) {
 
 
 // value change callback
-bool on_fparam_change(cb_context ctx) {
+bool onFparamChange(cb_context ctx) {
     log_i("fparam changed to %f, default value: %f",
-          fparam.get(), fparam.get_default());
+          fparam.get(), fparam.getDefault());
     return true;
 }
 
@@ -81,7 +81,7 @@ void setup() {
     mqtt.begin();
 
     settings.publish();
-    bar.change_callback = [] (cb_context ctx) {
+    bar.changeCallback = [] (cb_context ctx) {
         log_i("bar changed to %d", bar.get());
         return true;
     };

@@ -19,44 +19,44 @@ using callback_t = std::function<bool(const cb_context)>;
 // These methods convert a MQTT message payload string to different types.  The 2nd param must be a non-const reference.
 // TODO: Find a way to return the parsed value
 
-static inline void load_from_string(const String & payload, String & value) {
+static inline void loadFromString(const String & payload, String & value) {
     value = payload;
 }
 
-static inline void load_from_string(const String & payload, int & value) {
+static inline void loadFromString(const String & payload, int & value) {
     value = static_cast<int>(payload.toInt());
 }
 
-static inline void load_from_string(const String & payload, double & value) {
+static inline void loadFromString(const String & payload, double & value) {
     value = payload.toDouble();
 }
 
-static inline void load_from_string(const String & payload, float & value) {
+static inline void loadFromString(const String & payload, float & value) {
     value = payload.toFloat();
 }
 
-static inline void load_from_string(const String & payload, bool & value) {
+static inline void loadFromString(const String & payload, bool & value) {
     value = (payload.equalsIgnoreCase("true") || payload == "1");
 }
 
 // These methods convert different types to a MQTT payload
-static inline String store_to_string(const String & value) {
+static inline String storeToString(const String & value) {
     return value;
 }
 
-static inline String store_to_string(const int & value) {
+static inline String storeToString(const int & value) {
     return String(value);
 }
 
-static inline String store_to_string(const double & value) {
+static inline String storeToString(const double & value) {
     return String(value, DOUBLE_DIGITS);
 }
 
-static inline String store_to_string(const float & value) {
+static inline String storeToString(const float & value) {
     return String(value, FLOAT_DIGITS);
 }
 
-static inline String store_to_string(const bool & value) {
+static inline String storeToString(const bool & value) {
     return String((int)value);
 }
 
@@ -103,7 +103,7 @@ static inline void nvSet(Preferences &prefs,const String &key, const String &val
 }
 
 
-// TODO: Add more load_from_string and store_to_string variants
+// TODO: Add more loadFromString and storeToString variants
 
 class PicoSettings {
   public:
@@ -128,8 +128,8 @@ class PicoSettings {
     template <typename T>
     class Setting: public SettingBase {
       public:
-        Setting(PicoSettings & ns, const String & name, const T & default_value, callback_t callback = nullptr):
-            _name(name), _ns(ns), _default_value(default_value), change_callback(callback) {
+        Setting(PicoSettings & ns, const String & name, const T & defaultValue, callback_t callback = nullptr):
+            _name(name), _ns(ns), _default_value(defaultValue), changeCallback(callback) {
             _value = _default_value;
             // assert(name.len() < NVS_KEY_NAME_MAX_SIZE);
             _ns._settings.insert(this);
@@ -147,8 +147,8 @@ class PicoSettings {
             } else {
                 _value = nvGet(_ns._prefs, _name, _value);
             }
-            if (change_callback) {
-                change_callback(cb_context::CB_INITIAL_SETTING);
+            if (changeCallback) {
+                changeCallback(cb_context::CB_INITIAL_SETTING);
             }
         }
 
@@ -156,9 +156,9 @@ class PicoSettings {
             load();
             _ns._mqtt.subscribe(_ns.prefix() + _ns._name + "/" + _name, [this](const String & payload) {
                 // if there is a callback set, change the value permanently only if the callback returns true
-                load_from_string(payload, _value);
-                if (change_callback) {
-                    if (change_callback(cb_context::CB_SUBSCRIBE)) {
+                loadFromString(payload, _value);
+                if (changeCallback) {
+                    if (changeCallback(cb_context::CB_SUBSCRIBE)) {
                         nvSet(_ns._prefs, _name, _value);
                     }
                 } else {
@@ -168,25 +168,25 @@ class PicoSettings {
         }
 
         void publish() override {
-            _ns._mqtt.publish(_ns.prefix() + _ns._name + "/" + _name, store_to_string(_value));
+            _ns._mqtt.publish(_ns.prefix() + _ns._name + "/" + _name, storeToString(_value));
         }
 
         const T & get() const {
             return _value;
         }
 
-        const T & get_default() const {
+        const T & getDefault() const {
             return _default_value;
         }
 
-        void set(const T & new_value) {
+        void set(const T & newValue) {
 
             log_i("set %s", _name.c_str());
-            if (_value != new_value) {
-                _value = new_value;
+            if (_value != newValue) {
+                _value = newValue;
 
-                if (change_callback) {
-                    if (change_callback(cb_context::CB_SET)) {
+                if (changeCallback) {
+                    if (changeCallback(cb_context::CB_SET)) {
                         nvSet(_ns._prefs, _name, _value);
                     }
                 } else {
@@ -203,8 +203,8 @@ class PicoSettings {
 
         // This will allow setting from T objects
         auto operator=(const T & other) -> Setting & {
-            if (change_callback) {
-                if (change_callback(cb_context::CB_ASSIGN)) {
+            if (changeCallback) {
+                if (changeCallback(cb_context::CB_ASSIGN)) {
                     set(other);
                  }
                } else {
@@ -217,7 +217,7 @@ class PicoSettings {
             return _name;
         }
 
-        callback_t change_callback;
+        callback_t changeCallback;
 
       protected:
         const String _name;
