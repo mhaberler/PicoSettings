@@ -3,7 +3,6 @@
 #include <set>
 #include <PicoMQTT.h>
 #include <Preferences.h>
-#include "nvs.h"
 
 #define FLOAT_DIGITS 7
 #define DOUBLE_DIGITS 12
@@ -25,7 +24,7 @@ static inline void load_from_string(const String & payload, String & value) {
 }
 
 static inline void load_from_string(const String & payload, int & value) {
-    value = payload.toInt();
+    value = static_cast<int>(payload.toInt());
 }
 
 static inline void load_from_string(const String & payload, double & value) {
@@ -37,7 +36,7 @@ static inline void load_from_string(const String & payload, float & value) {
 }
 
 static inline void load_from_string(const String & payload, bool & value) {
-    value = payload.toInt();
+    value = (payload.equalsIgnoreCase("true") || payload == "1");
 }
 
 // These methods convert different types to a MQTT payload
@@ -110,8 +109,16 @@ class PicoSettings {
   public:
     class SettingBase {
       public:
-        virtual ~SettingBase() {}
+        virtual ~SettingBase() = default;
 
+        // Default constructor (needed for derived classes)
+        SettingBase() = default;
+
+        // Non-copyable, non-movable (manages pointers)
+        SettingBase(const SettingBase &) = delete;
+        SettingBase & operator=(const SettingBase &) = delete;
+        SettingBase(SettingBase &&) = delete;
+        SettingBase & operator=(SettingBase &&) = delete;
         virtual void load() = 0;
         virtual void begin() = 0;
         virtual void publish() = 0;
@@ -195,16 +202,16 @@ class PicoSettings {
         }
 
         // This will allow setting from T objects
-        const T & operator=(const T & other) {
+        auto operator=(const T & other) -> Setting & {
             if (change_callback) {
                 if (change_callback(CB_ASSIGN)) {
                     set(other);
-                }
-            } else {
+                 }
+               } else {
                 set(other);
+                }
+            return *this;
             }
-            return other;
-        }
 
         const String &name() const override {
             return _name;
@@ -217,8 +224,13 @@ class PicoSettings {
         PicoSettings & _ns;
         T _value;
         const T _default_value;
-    };
 
+         // Non-copyable, non-movable (has reference member)
+        Setting(const Setting &) = delete;
+        Setting & operator=(const Setting &) = delete;
+        Setting(Setting &&) = delete;
+        Setting & operator=(Setting &&) = delete;
+      };
 
     // PicoMQTT::Server  could be replaced by PicoMQTT::Client like so:
     // PicoSettings(PicoMQTT::Client & mqtt, const String name): mqtt(mqtt), name(name) {}
@@ -282,7 +294,12 @@ class PicoSettings {
     const String _name;
     const String _prefix;
 
-    // TODO: Perhaps a different container would work better?...
+     // Non-copyable, non-movable (has reference members)
+    PicoSettings(const PicoSettings &) = delete;
+    PicoSettings & operator=(const PicoSettings &) = delete;
+    PicoSettings(PicoSettings &&) = delete;
+    PicoSettings & operator=(PicoSettings &&) = delete;
+
+      // TODO: Perhaps a different container would work better?...
     std::set<SettingBase *> _settings;
 };
-

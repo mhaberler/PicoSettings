@@ -1,11 +1,9 @@
 #include <M5Unified.h>
 #include <PicoMQTT.h>
-#include <PicoWebsocket.h>
 #include "PicoSettings.h"
 #include <ESPmDNS.h>
 
 String macAddress;
-static const char *hostname = HOSTNAME;
 
 bool on_fparam_change(cb_context ctx);
 
@@ -75,14 +73,10 @@ void setup() {
     getMacAddress(macAddress);
     log_i("MAC address=%s", macAddress.c_str());
 
-    if (MDNS.begin(hostname)) {
+    if (MDNS.begin(HOSTNAME)) {
         MDNS.enableWorkstation();
         MDNS.addService("mqtt", "tcp", MQTT_PORT);
-        MDNS.addService("mqtt-ws", "tcp", MQTTWS_PORT);
-        MDNS.addServiceTxt("mqtt-ws", "tcp", "path", "/mqtt");
         mdns_service_instance_name_set("_mqtt", "_tcp", ("PicoMQTT-TCP-" + macAddress).c_str());
-        mdns_service_instance_name_set("_mqtt-ws", "_tcp",
-                                       ("PicoMQTT-WS-" + macAddress).c_str());
     }
     mqtt.begin();
 
