@@ -25,8 +25,8 @@ PicoSettings::Setting<bool> flag(settings, "flag", true, [] (cb_context ctx) {
 });
 
 PicoSettings::Setting<int> reboot(settings, "reboot", 0, [] (cb_context ctx) {
-    log_i("reboot was set: %d flag=%d", ctx, reboot.get());
-    if (ctx == CB_SUBSCRIBE) {
+    log_i("reboot was set: %d flag=%d", static_cast<int>(ctx), reboot.get());
+    if (ctx == cb_context::CB_SUBSCRIBE) {
         ESP.restart();
     }
     return false;

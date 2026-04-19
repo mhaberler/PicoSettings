@@ -7,14 +7,14 @@
 #define FLOAT_DIGITS 7
 #define DOUBLE_DIGITS 12
 
-typedef enum {
+enum class cb_context : uint8_t {
     CB_INITIAL_SETTING,
     CB_SUBSCRIBE,
     CB_SET,
     CB_ASSIGN
-} cb_context;
+};
 
-typedef std::function<bool(const cb_context)> callback_t;
+using callback_t = std::function<bool(const cb_context)>;
 
 // These methods convert a MQTT message payload string to different types.  The 2nd param must be a non-const reference.
 // TODO: Find a way to return the parsed value
@@ -61,45 +61,45 @@ static inline String store_to_string(const bool & value) {
 }
 
 // NVRAM getters
-static inline int nvGet(Preferences &p, const String &key, int defaultValue) {
-    return  p.getInt(key.c_str(), defaultValue);
+static inline int nvGet(Preferences &prefs, const String &key, int defaultValue) {
+    return  prefs.getInt(key.c_str(), defaultValue);
 }
 
-static inline String nvGet(Preferences &p, const String &key, const String &defaultValue) {
-    return p.getString(key.c_str(), defaultValue.c_str());
+static inline String nvGet(Preferences &prefs, const String &key, const String &defaultValue) {
+    return prefs.getString(key.c_str(), defaultValue.c_str());
 }
 
-static inline double nvGet(Preferences &p, const String &key, double defaultValue) {
-    return  p.getDouble(key.c_str(), defaultValue);
+static inline double nvGet(Preferences &prefs, const String &key, double defaultValue) {
+    return  prefs.getDouble(key.c_str(), defaultValue);
 }
 
-static inline float nvGet(Preferences &p, const String &key, float defaultValue) {
-    return  p.getFloat(key.c_str(), defaultValue);
+static inline float nvGet(Preferences &prefs, const String &key, float defaultValue) {
+    return  prefs.getFloat(key.c_str(), defaultValue);
 }
 
-static inline bool nvGet(Preferences &p, const String &key, bool defaultValue) {
-    return  p.getBool(key.c_str(), defaultValue);
+static inline bool nvGet(Preferences &prefs, const String &key, bool defaultValue) {
+    return  prefs.getBool(key.c_str(), defaultValue);
 }
 
 // NVRAM setters
-static inline void nvSet(Preferences &p, const String &key, int value) {
-    p.putInt(key.c_str(), value);
+static inline void nvSet(Preferences &prefs, const String &key, int value) {
+    prefs.putInt(key.c_str(), value);
 }
 
-static inline void nvSet(Preferences &p, const String &key, bool value) {
-    p.putBool(key.c_str(), value);
+static inline void nvSet(Preferences &prefs, const String &key, bool value) {
+    prefs.putBool(key.c_str(), value);
 }
 
-static inline void nvSet(Preferences &p, const String &key, float value) {
-    p.putFloat(key.c_str(), value);
+static inline void nvSet(Preferences &prefs, const String &key, float value) {
+    prefs.putFloat(key.c_str(), value);
 }
 
-static inline void nvSet(Preferences &p, const String &key, double value) {
-    p.putDouble(key.c_str(), value);
+static inline void nvSet(Preferences &prefs, const String &key, double value) {
+    prefs.putDouble(key.c_str(), value);
 }
 
-static inline void nvSet(Preferences &p,const String &key, const String &value) {
-    p.putString(key.c_str(), value.c_str());
+static inline void nvSet(Preferences &prefs,const String &key, const String &value) {
+    prefs.putString(key.c_str(), value.c_str());
 }
 
 
@@ -122,7 +122,7 @@ class PicoSettings {
         virtual void load() = 0;
         virtual void begin() = 0;
         virtual void publish() = 0;
-        virtual const String &name() const = 0;
+        [[nodiscard]] virtual const String &name() const = 0;
     };
 
     template <typename T>
@@ -140,7 +140,7 @@ class PicoSettings {
             _ns._settings.erase(this);
         }
 
-        virtual void load() override {
+        void load() override {
             if (!_ns._prefs.isKey(_name.c_str())) {
                 nvSet(_ns._prefs, _name, _default_value);
                 _value = _default_value;
@@ -148,17 +148,17 @@ class PicoSettings {
                 _value = nvGet(_ns._prefs, _name, _value);
             }
             if (change_callback) {
-                change_callback(CB_INITIAL_SETTING);
+                change_callback(cb_context::CB_INITIAL_SETTING);
             }
         }
 
-        virtual void begin() override {
+        void begin() override {
             load();
             _ns._mqtt.subscribe(_ns.prefix() + _ns._name + "/" + _name, [this](const String & payload) {
                 // if there is a callback set, change the value permanently only if the callback returns true
                 load_from_string(payload, _value);
                 if (change_callback) {
-                    if (change_callback(CB_SUBSCRIBE)) {
+                    if (change_callback(cb_context::CB_SUBSCRIBE)) {
                         nvSet(_ns._prefs, _name, _value);
                     }
                 } else {
@@ -167,7 +167,7 @@ class PicoSettings {
             });
         }
 
-        virtual void publish() override {
+        void publish() override {
             _ns._mqtt.publish(_ns.prefix() + _ns._name + "/" + _name, store_to_string(_value));
         }
 
@@ -186,7 +186,7 @@ class PicoSettings {
                 _value = new_value;
 
                 if (change_callback) {
-                    if (change_callback(CB_SET)) {
+                    if (change_callback(cb_context::CB_SET)) {
                         nvSet(_ns._prefs, _name, _value);
                     }
                 } else {
@@ -204,7 +204,7 @@ class PicoSettings {
         // This will allow setting from T objects
         auto operator=(const T & other) -> Setting & {
             if (change_callback) {
-                if (change_callback(CB_ASSIGN)) {
+                if (change_callback(cb_context::CB_ASSIGN)) {
                     set(other);
                  }
                } else {
@@ -213,7 +213,7 @@ class PicoSettings {
             return *this;
             }
 
-        const String &name() const override {
+        [[nodiscard]] const String &name() const override {
             return _name;
         }
 
@@ -234,7 +234,7 @@ class PicoSettings {
 
     // PicoMQTT::Server  could be replaced by PicoMQTT::Client like so:
     // PicoSettings(PicoMQTT::Client & mqtt, const String name): mqtt(mqtt), name(name) {}
-    PicoSettings(PicoMQTT::Server & mqtt, const String &name = "default", const String &prefix = "preferences/"): _mqtt(mqtt), _name(name), _prefix(prefix) {}
+    PicoSettings(PicoMQTT::Server & mqtt, const String &name = "default", const String &prefix = "preferences/"): _mqtt(mqtt), _name(name), _prefix(prefix), _settings{} {}
 
     ~PicoSettings() {
         _mqtt.unsubscribe(_prefix + _name + "/reset");
@@ -280,11 +280,11 @@ class PicoSettings {
         _mqtt.publish(_prefix + _name + "/reset", "0");
     }
 
-    const String &name() {
+    [[nodiscard]] const String &name() const {
         return _name;
     }
 
-    const String &prefix() {
+    [[nodiscard]] const String &prefix() const {
         return _prefix;
     }
 
